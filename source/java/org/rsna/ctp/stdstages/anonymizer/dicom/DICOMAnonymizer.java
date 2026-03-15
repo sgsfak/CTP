@@ -684,6 +684,7 @@ public class DICOMAnonymizer {
 	static final String hashFn 			= "hash";
 	static final String hashnameFn 		= "hashname";
 	static final String hashuidFn 		= "hashuid";
+	static final String hashuidpFn 		= "hashuidp";
 	static final String hashptidFn 		= "hashptid";
 	static final String ifFn 			= "if";
 	static final String selectFn 		= "select";
@@ -739,6 +740,7 @@ public class DICOMAnonymizer {
 				else if (fnCall.name.equals(hashnameFn))	out += hashname(fnCall);
 				else if (fnCall.name.equals(hashptidFn))	out += hashptid(fnCall);
 				else if (fnCall.name.equals(hashuidFn)) 	out += hashuid(fnCall);
+				else if (fnCall.name.equals(hashuidpFn)) 	out += hashuidp(fnCall);
 				else if (fnCall.name.equals(ifFn))			out += iffn(fnCall);
 				else if (fnCall.name.equals(selectFn))		out += selectfn(fnCall);
 				else if (fnCall.name.equals(appendFn))		out += appendfn(fnCall);
@@ -1348,6 +1350,33 @@ public class DICOMAnonymizer {
 	private static int getReplacementValue(String s) {
 		try { return Integer.parseInt(s); }
 		catch (Exception ex) { return -1; }
+	}
+
+	// Execute the hashuid function call. Generate a new uid
+	// from a prefix, the old uid, and a parameter referring to "secret" key.
+	// The secret is appended to the old uid and the results is hashed. The hash
+	// is then appended to the prefix to create the new uid.
+	private static String hashuidp(FnCall fn) {
+		String removeUID = "@remove()";
+		try {
+			if (fn.args.length < 3) return fn.getArgs();
+			String prefix = getParam(fn);
+			String uid = fn.context.contentsNull(fn.args[1], fn.thisTag);
+			//If there is no UID in the dataset, then return @remove().
+			if (uid == null) return removeUID;
+			String secret = fn.context.getParam(fn.args[2]);
+			String to_be_hashed = uid + secret;
+			
+			//Make sure the prefix ends in a period
+			if (!prefix.endsWith(".")) prefix += ".";
+			//Create the replacement UID
+			return AnonymizerFunctions.hashUID(prefix, to_be_hashed);
+		}
+		catch (Exception e) {
+			logger.warn(Tags.toString(fn.thisTag)+": Exception caught in hashuidp"+fn.getArgs()+": "+e.getMessage());
+			logger.debug(e.getMessage(), e);
+			return fn.getArgs();
+		}
 	}
 
 	//Execute the hashuid function call. Generate a new uid
